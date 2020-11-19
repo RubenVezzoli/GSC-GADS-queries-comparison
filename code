@@ -1,0 +1,87 @@
+# 1. INSTALL & LOAD THE PACKAGES -------------------------
+# -----------------------------------------------------
+
+install.packages("searchConsoleR")
+install.packages("tidyverse")
+install.packages("stringr")
+install.packages("purrr")
+
+library("searchConsoleR")
+library("tidyverse")
+library("stringr")
+library("purrr")
+
+
+# 2. GSC DATA DOWNLOAD ----------------------------
+# ----------------------------------------------
+
+## OAUTH 2.0 GSC
+scr_auth(email = "YOUR GSC EMAIL ADDRESS")
+
+## Set Date Range
+gsc_dateRange <- function(start, end) {
+                    seq.Date(from = as.Date(start),
+                    to = as.Date(end),
+                    by = "day")}
+
+## Main Function
+gsc_dataDownload <- function(single_date, url, dim1, dim2 = NULL) {
+  gsc_data <- searchConsoleR::search_analytics(
+    siteURL = url,
+    startDate = single_date,
+    endDate = single_date,
+    dimensions = c(dim1,
+                   dim2),
+    walk_data = "byBatch",
+    searchType = "web",
+    rowLimit = 100000)
+  Sys.sleep(3)
+  return(gsc_data)
+}
+
+## Output - GSC
+gsc_export <- map_dfr(.x = gsc_date_range(start = Sys.Date() - 365,
+                                          end = Sys.Date() - 3),
+                      .f = gsc_dataDownload,
+                      url = "YOUR GSC PROPERTY NAME",
+                      dim1 = "page",
+                      dim2 = "query")
+
+
+# 3. GOOGLE ADS DATA DOWNLOAD ---------------------
+# ----------------------------------------------
+
+## OAUTH 2.0 GADS
+googleAuth <- doAuth(save = T)
+
+
+## Main function
+body <- statement(select = c("Query", "Impressions", "Clicks", "Clicks", "Ctr", "Cost", "Conversions"),
+                  report = "SEARCH_QUERY_PERFORMANCE_REPORT",
+                  start = "2020-07-01",
+                  end = "2020-10-24")
+
+## Output - GADS
+gads_export  <- getData(clientCustomerId = "YOUR GOOGLE ADS ACCOUNT ID - NO MCC ID",
+                      google_auth = googleAuth,
+                      statement = body,
+                      transformation = TRUE)
+
+
+# 4. GSC AND GADS COMPARISON  ---------------------
+# ----------------------------------------------
+
+comparison <- gsc_export %>%
+                  select("query", "clicks", "impressions") %>% 
+                  left_join(gads_export %>%
+                              select("Searchterm", "Clicks", "Impressions"), by = c("query" = "Searchterm")) %>%
+                  filter(!str_detect("query", "[Ww]urth|rth|th|urt|[Ww]|wurth")) %>% # Exclude branded search queries 
+                  select(-Clicks, -clicks) %>% 
+                  mutate(difference = (impressions / Impressions -1) * 100) # In my case I compared the impressions 
+
+
+# 5. EXPORT THE COMPARISON ANALYSIS AS .CSV FILE  ---------------------
+# ---------------------------------------------------------------------
+
+write.csv(comparison, "comparison.csv")
+
