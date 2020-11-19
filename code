@@ -75,9 +75,8 @@ comparison <- gsc_export %>%
                   select("query", "clicks", "impressions") %>% 
                   left_join(gads_export %>%
                               select("Searchterm", "Clicks", "Impressions"), by = c("query" = "Searchterm")) %>%
-                  filter(!str_detect("query", "[Ww]urth|rth|th|urt|[Ww]|wurth")) %>% # Exclude branded search queries 
                   select(-Clicks, -clicks) %>% 
-                  mutate(difference = (impressions / Impressions -1) * 100) # In my case I compared the impressions 
+                  mutate(difference = (impressions / Impressions -1) * 100) # In my case I compared GSC vs GADS impressions 
 
 
 # 5. EXPORT THE COMPARISON ANALYSIS AS .CSV FILE  ---------------------
